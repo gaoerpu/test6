@@ -1,0 +1,33 @@
+;; === FOC 电流模式高能测试 ===
+;; 设定参数
+(define run-current 30.0) ; 设定目标电流为 30A
+(define run-time 15)      ; 设定运行时间为 15秒
+
+;; 计算循环次数 (15秒 * 50Hz = 750次)
+(define loops (* run-time 50)) 
+
+;; 主函数
+(defun main () {
+    (print "--- 30A CURRENT TEST START ---")
+    
+    ;; 1. 安全等待 3 秒 (请抓紧时间远离或确认安全)
+    (print "Waiting 3 seconds...")
+    (sleep 3)
+
+    ;; 2. 开始转动
+    (print ">>> MOTOR RUNNING (30A) <<<")
+    
+    ;; 3. 循环发送指令 (持续 15秒)
+    (looprange i 0 loops {
+        (set-current run-current) ; 发送 30A 电流指令
+        (timeout-reset)           ; 喂狗
+        (sleep 0.02)              ; 20ms 延时 (50Hz)
+    })
+
+    ;; 4. 停止
+    (set-current 0)
+    (print "--- STOPPED ---")
+})
+
+;; 启动 (分配 1024 字节内存)
+(spawn 1024 main)

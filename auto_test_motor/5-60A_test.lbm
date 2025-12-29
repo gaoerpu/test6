@@ -1,0 +1,61 @@
+;; === 8小时 15A-60A 循环测试 (20秒助跑版) ===
+
+;; 1. 参数设置
+(define test-hours 8.0)     ; 测试时长: 8小时
+(define min-amp 15.0)       ; 最小电流: 15A (防止失速)
+(define max-amp 65.0)       ; 最大电流: 60A
+(define ramp-time 30.0)     ; 单程 30秒 (30s上, 30s下)
+(define start-kick 20.0)    ; 启动助跑电流: 20A
+
+;; 2. 预计算常量
+(define loop-hz 20) ; 频率 20Hz
+(define total-loops (* test-hours 3600 loop-hz))
+
+;; 三角波参数
+(define steps-one-way (* ramp-time loop-hz))
+(define steps-cycle (* steps-one-way 2))
+(define amp-step (/ (- max-amp min-amp) steps-one-way))
+
+(defun main () {
+    (print "--- TEST START ---")
+    (print "Wait 3s...")
+    (sleep 3)
+
+    ;; === 阶段一：20秒稳态助跑 (Warm up) ===
+    (print ">>> STABILIZING (20A for 20s) <<<")
+
+    ;; 【修改点】20秒 * 20Hz = 400次
+    (looprange k 0 400 {
+        (set-current start-kick)
+        (timeout-reset)
+        (sleep 0.05)
+    })
+
+    (print ">>> KICKSTART DONE -> ENTERING CYCLE <<<")
+
+    ;; === 阶段二：正式循环 (Cyclic Loop) ===
+    (looprange i 0 total-loops {
+
+        ;; 1. 计算三角波位置
+        (define idx (mod i steps-cycle))
+
+        ;; 2. 计算当前电流 (无副作用写法)
+        (define current-now
+            (if (< idx steps-one-way)
+                (+ min-amp (* idx amp-step))
+                (- max-amp (* (- idx steps-one-way) amp-step))
+            )
+        )
+
+        ;; 3. 执行
+        (set-current current-now)
+        (timeout-reset)
+        (sleep 0.05)
+    })
+
+    (set-current 0)
+    (print "--- ALL DONE ---")
+})
+
+;; 启动
+(spawn 4096 main)
